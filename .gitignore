@@ -1,0 +1,9 @@
+build/
+googletest/
+build*/
+bin/
+CMakeFiles/
+src/main
+src/CMakeFiles/
+src/CmakeCache.txt
+*.a

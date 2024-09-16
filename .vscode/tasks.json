@@ -1,0 +1,26 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "docker-compose -f docker-compose.dev.yml up",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Clear All Containers",
+            "type": "shell",
+            "command": "docker ps -a -q | % { docker stop $_ | docker rm $_ }",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "CleanUp",
+            "type": "shell",
+            "command": "docker-compose -f docker-compose.dev.yml down",
+            "group": "build",
+            "problemMatcher": []
+        }
+    ]
+}

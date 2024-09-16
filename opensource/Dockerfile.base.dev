@@ -1,0 +1,81 @@
+# Copyright (c) 9-7-2024 Cummins Inc
+# 
+# This program and the accompanying materials are made
+# available under the terms of the Eclipse Public License 2.0
+# which is available at https://www.eclipse.org/legal/epl-2.0/
+# 
+# SPDX-License-Identifier: EPL-2.0
+
+FROM ubuntu:focal as base
+ARG DEBIAN_FRONTEND=noninteractive
+ARG PAHO_MQTT_C_VERSION="1.3.9"
+ARG PAHO_MQTT_CPP_VERSION="1.2.0"
+ARG GOOGLE_TEST_VERSION="release-1.11.0"
+ARG SETUP_DIR="/root"
+WORKDIR ${SETUP_DIR}
+RUN apt-get update \
+     && apt-get install cmake \
+                              make \
+                              g++ \
+                              tcl-dev \
+                              clang \
+                              git \
+                              unzip \
+                              wget \
+                              gdb \
+                              libssl-dev -y
+
+##General dependencies
+RUN wget --no-check-certificate https://github.com/gabime/spdlog/archive/refs/tags/v1.9.2.zip
+RUN unzip v1.9.2.zip 
+RUN mv spdlog-1.9.2 spdlog 
+WORKDIR ${SETUP_DIR}/spdlog/build  
+RUN     cmake .. \
+     && make && make install \
+     && cd / && rm -rf spdlog v1.9.2.zip
+
+WORKDIR ${SETUP_DIR}
+RUN wget https://github.com/google/googletest/archive/refs/tags/${GOOGLE_TEST_VERSION}.zip
+RUN unzip ${GOOGLE_TEST_VERSION}.zip
+WORKDIR /root/googletest-${GOOGLE_TEST_VERSION}
+RUN  cmake . && make && make install
+
+WORKDIR ${SETUP_DIR}
+RUN wget --no-check-certificate https://github.com/eclipse/paho.mqtt.c/archive/refs/tags/v${PAHO_MQTT_C_VERSION}.zip
+RUN unzip v${PAHO_MQTT_C_VERSION}.zip 
+WORKDIR  ${SETUP_DIR}/paho.mqtt.c-${PAHO_MQTT_C_VERSION}
+RUN  cmake -Bbuild -H. -DPAHO_ENABLE_TESTING=OFF -DPAHO_WITH_SSL=OFF -DPAHO_HIGH_PERFORMANCE=ON \
+     && cmake --build build/ --target install 
+
+WORKDIR ${SETUP_DIR}
+RUN wget --no-check-certificate https://github.com/eclipse/paho.mqtt.cpp/archive/refs/tags/v${PAHO_MQTT_CPP_VERSION}.zip 
+RUN unzip v${PAHO_MQTT_CPP_VERSION}.zip
+WORKDIR ${SETUP_DIR}/paho.mqtt.cpp-${PAHO_MQTT_CPP_VERSION}
+RUN  cmake -Bbuild -H. -DPAHO_BUILD_DOCUMENTATION=FALSE -DPAHO_WITH_SSL=OFF -DPAHO_BUILD_SAMPLES=TRUE \
+     && cmake --build build/ --target install
+
+WORKDIR ${SETUP_DIR}
+ARG NLOHMANN_VERSION="v3.11.2"
+RUN git clone https://github.com/nlohmann/json json --recursive
+WORKDIR  ${SETUP_DIR}/json
+RUN git checkout ${NLOHMANN_VERSION}
+WORKDIR ${SETUP_DIR}/json/build-dir
+RUN cmake .. -DMAKE_BUILD_TYPE=Release -DBUILD_TESTING:BOOL=OFF -DJSON_BuildTests=OFF
+RUN cmake --build . --config Release --target install -- -j${nproc}
+
+WORKDIR ${SETUP_DIR}
+ARG JSON_SCHEMA_VALIDATOR_VERSION=2.2.0
+RUN git clone https://github.com/pboettch/json-schema-validator.git
+WORKDIR ${SETUP_DIR}/json-schema-validator
+RUN git checkout tags/${JSON_SCHEMA_VALIDATOR_VERSION}
+WORKDIR ${SETUP_DIR}/json-schema-validator/build-dir
+RUN cmake -DBUILD_SHARED_LIBS=ON .. && make && make install
+##End General dependencies
+
+RUN apt-get install libfmt-dev -y
+
+WORKDIR ${SETUP_DIR}
+RUN rm -rf * && sync
+RUN ldconfig
+ADD runTesting.sh /usr/local/sbin/
+RUN chmod a+x /usr/local/sbin/runTesting.sh
