@@ -1,0 +1,24 @@
+# Copyright (c) 9-7-2024 Cummins Inc
+# 
+# This program and the accompanying materials are made
+# available under the terms of the Eclipse Public License 2.0
+# which is available at https://www.eclipse.org/legal/epl-2.0/
+# 
+# SPDX-License-Identifier: EPL-2.0
+# #this dockerfile is intended to run development quality tools as Unit Testing and Static Code analysis
+FROM opensource-ut AS ut
+ARG PROJECT_NAME="canought-can-translator-client"
+ARG SETUP_DIR="/root"
+ARG BUILD_FOLDER="build-dir"
+ARG BUILD_TYPE="Debug"
+WORKDIR ${SETUP_DIR}
+ADD src src
+ADD test test
+ADD CMakeLists.txt .
+WORKDIR ${SETUP_DIR}/${BUILD_FOLDER}
+RUN cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DAPP_NAME:STRING=${PROJECT_NAME} -DENABLE_TESTING:BOOL=ON ..
+RUN make && make install
+RUN ldconfig
+WORKDIR ${SETUP_DIR}
+ENV PROJECT_NAME_APP=${PROJECT_NAME}
+CMD runTesting.sh ${PROJECT_NAME_APP}
